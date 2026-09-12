@@ -85,6 +85,11 @@ ENV_METADATA: dict[str, dict[str, str | bool]] = {
         "chip_family": "ESP32-C6",
         "web_manifest": True,
     },
+    "grumpy_node": {
+        "name": "Grumpy Node openHop Modem",
+        "chip_family": "ESP32-C3",
+        "web_manifest": True,
+    },
     "rak3112_wismesh": {
         "name": "RAK3112 WisMesh openHop Modem",
         "chip_family": "ESP32-S3",
@@ -159,6 +164,7 @@ BOARD_HEADER_TO_ENV = {
     "firmware/include/boards/ikoka_stick.h": "ikoka_stick",
     "firmware/include/boards/xiao_wio_sx1262.h": "xiao_wio_sx1262",
     "firmware/include/boards/photon_1w_xiao_esp32c6.h": "photon_1w_xiao_esp32c6",
+    "firmware/include/boards/grumpy_node.h": "grumpy_node",
     "firmware/include/boards/rak3112_wismesh.h": "rak3112_wismesh",
     "firmware/include/boards/station_g2.h": "station_g2",
     "firmware/include/boards/station_g3.h": "station_g3",

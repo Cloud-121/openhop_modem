@@ -312,8 +312,13 @@ public:
 #if defined(BOARD_PHOTON_1W_XIAO_ESP32C6)
 static SPIClass loraSpi(0);
 OpenHopSX1262 radio = new Module(BOARD.pin_lora_nss, BOARD.pin_lora_dio1,
-                              BOARD.pin_lora_rst, BOARD.pin_lora_busy,
-                              loraSpi);
+                               BOARD.pin_lora_rst, BOARD.pin_lora_busy,
+                               loraSpi);
+#elif defined(BOARD_GRUMPY_NODE)
+static SPIClass loraSpi(FSPI);
+OpenHopSX1262 radio = new Module(BOARD.pin_lora_nss, BOARD.pin_lora_dio1,
+                               BOARD.pin_lora_rst, BOARD.pin_lora_busy,
+                               loraSpi);
 #elif defined(BOARD_RAK4631_WISMESH_ETH) || defined(BOARD_RAK4631_USB)
 // The RAK4631 internal SX1262 uses its own nRF52 SPIM instance on
 // P1.11/P1.13/P1.12. On the Ethernet variant this also keeps global SPI free
@@ -332,15 +337,15 @@ OpenHopSX1262 radio = new Module(BOARD.pin_lora_nss, BOARD.pin_lora_dio1,
 // defined above so call sites compile unchanged.
 OledDisplay oled;
 
-// ─── Default config: EU/UK (Narrow), Switzerland preset ──────
+// ─── Build-time radio defaults (host can override) ───────────
 static RadioConfig currentConfig = {
-    .freq_hz      = 869618000,
-    .bandwidth_hz = 62500,
-    .sf           = 8,
-    .cr           = 8,
-    .power_dbm    = 22,
-    .syncword     = 0x12,
-    .preamble_len = 16
+    .freq_hz      = DEFAULT_FREQ,
+    .bandwidth_hz = DEFAULT_BW,
+    .sf           = DEFAULT_SF,
+    .cr           = DEFAULT_CR,
+    .power_dbm    = DEFAULT_POWER,
+    .syncword     = DEFAULT_SYNCWORD,
+    .preamble_len = DEFAULT_PREAMBLE
 };
 
 static StatusResp  status        = {};
@@ -538,9 +543,9 @@ void onDio1Rise() {
 // EN goes HIGH and stays there forever — never toggled by the radio
 // path. Boards without an external switch (en_pin == -1) skip both
 // steps entirely.
-static uint32_t enLowStartedMs = 0;
+static uint32_t enBootStartedMs = 0;
 
-static void rfSwitchEnLowAtBoot() {
+static void rfSwitchEnAtBoot() {
     // Boards without a LoRa front end (e.g. ESP32-P4-Nano on day one)
     // list pin numbers for documentation but the module is not actually
     // wired — skip every RF-switch action so we don't drive a pin into
@@ -548,8 +553,9 @@ static void rfSwitchEnLowAtBoot() {
     if (!BOARD.has_lora_radio) return;
     if (BOARD.rf_switch.en_pin < 0) return;
     pinMode(BOARD.rf_switch.en_pin, OUTPUT);
-    digitalWrite(BOARD.rf_switch.en_pin, LOW);
-    enLowStartedMs = millis();
+    digitalWrite(BOARD.rf_switch.en_pin,
+                 BOARD.rf_switch.en_high_from_boot ? HIGH : LOW);
+    enBootStartedMs = millis();
 }
 
 static void writeOutputPin(int8_t pin, bool high) {
@@ -598,8 +604,9 @@ static void updateRak3401ReadyLedHeartbeat() {
 static void rfSwitchEnHighAfterSettle() {
     if (!BOARD.has_lora_radio) return;
     if (BOARD.rf_switch.en_pin < 0) return;
-    uint32_t elapsed = millis() - enLowStartedMs;
-    if (elapsed < BOARD.rf_switch.en_low_hold_ms) {
+    uint32_t elapsed = millis() - enBootStartedMs;
+    if (!BOARD.rf_switch.en_high_from_boot &&
+        elapsed < BOARD.rf_switch.en_low_hold_ms) {
         uint32_t remaining = BOARD.rf_switch.en_low_hold_ms - elapsed;
         // Feed the watchdog every second while we wait so the 30 s
         // task watchdog stays happy on long holds.
@@ -1539,16 +1546,14 @@ void setup() {
     // synchronous instead of waiting forever for an undelivered flash event.
     Rak4631Config::prepareFlashRuntime();
 #endif
+    // Establish the carrier's E22 EN level before any peripheral setup.
+    // Most E22P boards hold it LOW while their PA bias settles; Grumpy must
+    // claim GPIO21 from UART0 and keep EN HIGH throughout startup.
+    rfSwitchEnAtBoot();
+
     // PRG held ≥5s at boot → wipe Wi-Fi NVS and reboot. Must come before
     // other init so button sampling is clean.
     WifiManager::checkResetButton();
-
-    // Drive the E22 EN pin LOW immediately so the LDOs and PA bias
-    // see a clean, deliberate power-up — no-op on boards with
-    // en_pin == -1. Counter starts now; rfSwitchEnHighAfterSettle()
-    // below makes sure the full board.en_low_hold_ms has elapsed
-    // before SPI traffic begins.
-    rfSwitchEnLowAtBoot();
     txLedInitAtBoot();
     rak3401ReadyLedOffAtBoot();
 
@@ -1672,6 +1677,10 @@ void setup() {
             // working C6 port, which uses SPIClass(0) for the LoRa bus.
             loraSpi.begin(BOARD.pin_lora_sck, BOARD.pin_lora_miso,
                           BOARD.pin_lora_mosi);
+#elif defined(BOARD_GRUMPY_NODE)
+            // The working MeshCore ESP32-C3 target uses the FSPI host.
+            loraSpi.begin(BOARD.pin_lora_sck, BOARD.pin_lora_miso,
+                          BOARD.pin_lora_mosi, BOARD.pin_lora_nss);
 #else
             // ESP32-S3/P4 GPIO matrix: rebind SPI to specific pins
             SPI.begin(BOARD.pin_lora_sck, BOARD.pin_lora_miso,

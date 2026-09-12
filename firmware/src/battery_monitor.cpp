@@ -34,15 +34,16 @@ bool plausible(uint16_t millivolts, const AdcConfig& config) {
 }
 
 #ifdef ARDUINO
-bool readFuelGaugeRegister(uint8_t address, uint8_t reg, uint16_t& value) {
+bool readFuelGaugeRegister(uint8_t address, uint8_t reg, bool repeatedStart,
+                           uint16_t& value) {
 #if defined(ARDUINO_ARCH_ESP32)
     Wire.setTimeOut(50);
 #endif
     Wire.beginTransmission(address);
     Wire.write(reg);
-    // MAX17048 accepts a STOP here. On ESP32-C6 this avoids a repeated-start
-    // recovery path which can wedge when the gauge or pull-ups are absent.
-    if (Wire.endTransmission(true) != 0) {
+    // Photon C6 uses a STOP to avoid a recovery path that can wedge when the
+    // gauge is absent; Grumpy C3 follows its verified repeated-start sequence.
+    if (Wire.endTransmission(!repeatedStart) != 0) {
         return false;
     }
     if (Wire.requestFrom(address, static_cast<uint8_t>(2)) != 2) {
@@ -178,7 +179,8 @@ uint16_t readMilliVolts(const BatterySenseConfig& config) {
     if (config.fuel_gauge_i2c_addr != 0) {
         uint16_t vcell = 0;
         if (!readFuelGaugeRegister(config.fuel_gauge_i2c_addr,
-                                   config.fuel_gauge_vcell_reg, vcell)) {
+                                   config.fuel_gauge_vcell_reg,
+                                   config.fuel_gauge_repeated_start, vcell)) {
             return MILLIVOLTS_UNAVAILABLE;
         }
         // MAX17048 VCELL is 78.125 uV/LSB: vcell * 5 / 64 mV.
@@ -236,7 +238,8 @@ bool readChargeRatePctPerHour(const BatterySenseConfig& config,
     }
     uint16_t crate = 0;
     if (!readFuelGaugeRegister(config.fuel_gauge_i2c_addr,
-                               config.fuel_gauge_crate_reg, crate)) {
+                               config.fuel_gauge_crate_reg,
+                               config.fuel_gauge_repeated_start, crate)) {
         return false;
     }
     pctPerHour = static_cast<float>(static_cast<int16_t>(crate)) * 0.208f;

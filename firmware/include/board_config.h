@@ -20,8 +20,7 @@
 //
 //   en_pin            GPIO that gates the entire RF switch (the "EN"
 //                     column of the E22 datasheet truth table). The
-//                     firmware drives it LOW for `en_low_hold_ms`
-//                     during boot to let the module power up cleanly,
+//                     firmware establishes the board's configured boot level,
 //                     then raises it HIGH and never lowers it again.
 //                     Set to -1 if the board has no external switch
 //                     (e.g. bare SX1262 on Heltec V3 — the SX1262's
@@ -44,12 +43,17 @@
 //                     involvement. Heltec V3 uses DIO2 for the
 //                     SX1262's internal switch; Ikoka Stick wires
 //                     DIO2 ↔ TXEN externally.
+//
+//   en_high_from_boot Some carriers need EN asserted before any peripheral
+//                     setup and must never drive it LOW. When true, EN is
+//                     raised immediately and en_low_hold_ms is ignored.
 struct RfSwitchPolicy {
     int8_t   en_pin;
     uint16_t en_low_hold_ms;
     int8_t   rx_pin;
     int8_t   tx_pin;
     bool     dio2_as_rf_switch;
+    bool     en_high_from_boot = false;
 };
 
 struct StaticGpioLevel {
@@ -76,6 +80,7 @@ struct BatterySenseConfig {
     uint8_t fuel_gauge_i2c_addr = 0;      // MAX17048-style fuel gauge, 0=none
     uint8_t fuel_gauge_vcell_reg = 0x02;  // VCELL register (78.125 uV/LSB)
     uint8_t fuel_gauge_crate_reg = 0;     // CRATE register, 0=not exposed
+    bool fuel_gauge_repeated_start = false;
 
     // Raw-ADC conversion for platforms without analogReadMilliVolts(). A zero
     // field leaves this path unsupported. Divider values form an exact rational
@@ -310,6 +315,8 @@ extern const BoardConfig BOARD;
 #  include "boards/xiao_wio_sx1262.h"
 #elif defined(BOARD_PHOTON_1W_XIAO_ESP32C6)
 #  include "boards/photon_1w_xiao_esp32c6.h"
+#elif defined(BOARD_GRUMPY_NODE)
+#  include "boards/grumpy_node.h"
 #elif defined(BOARD_XIAO_NRF52_WIO)
 #  include "boards/xiao_nrf52_wio.h"
 #elif defined(BOARD_RAK4631_WISMESH_ETH)
@@ -325,5 +332,5 @@ extern const BoardConfig BOARD;
 #elif defined(BOARD_STATION_G3)
 #  include "boards/station_g3.h"
 #else
-#  error "No board selected — add one of -DBOARD_HELTEC_V3 / -DBOARD_HELTEC_V4 / -DBOARD_HELTEC_V42 / -DBOARD_HELTEC_V43 / -DBOARD_IKOKA_STICK / -DBOARD_LILYGO_T3S3 / -DBOARD_RAK3112_WISMESH / -DBOARD_ESP32_P4_NANO / -DBOARD_ETHERMESH_1W / -DBOARD_HELTEC_T114 / -DBOARD_HELTEC_TRACKER_V2 / -DBOARD_XIAO_WIO_SX1262 / -DBOARD_PHOTON_1W_XIAO_ESP32C6 / -DBOARD_XIAO_NRF52_WIO / -DBOARD_RAK4631_WISMESH_ETH / -DBOARD_RAK4631_USB / -DBOARD_RAK3401 / -DBOARD_STATION_G2 / -DBOARD_LILYGO_TBEAM_S3_SUPREME / -DBOARD_STATION_G3 to platformio.ini build_flags"
+#  error "No board selected — add one of -DBOARD_HELTEC_V3 / -DBOARD_HELTEC_V4 / -DBOARD_HELTEC_V42 / -DBOARD_HELTEC_V43 / -DBOARD_IKOKA_STICK / -DBOARD_LILYGO_T3S3 / -DBOARD_RAK3112_WISMESH / -DBOARD_ESP32_P4_NANO / -DBOARD_ETHERMESH_1W / -DBOARD_HELTEC_T114 / -DBOARD_HELTEC_TRACKER_V2 / -DBOARD_XIAO_WIO_SX1262 / -DBOARD_PHOTON_1W_XIAO_ESP32C6 / -DBOARD_GRUMPY_NODE / -DBOARD_XIAO_NRF52_WIO / -DBOARD_RAK4631_WISMESH_ETH / -DBOARD_RAK4631_USB / -DBOARD_RAK3401 / -DBOARD_STATION_G2 / -DBOARD_LILYGO_TBEAM_S3_SUPREME / -DBOARD_STATION_G3 to platformio.ini build_flags"
 #endif

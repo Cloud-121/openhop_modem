@@ -19,6 +19,7 @@ openHop application and its access to USB or the modem's network.
 | **Ikoka Stick** ([ndoo/ikoka-stick-meshtastic-device](https://github.com/ndoo/ikoka-stick-meshtastic-device))| XIAO ESP32-S3                | Ebyte E22P868M30S, +30 dBm | Wi-Fi   |
 | **Seeed XIAO Wio-SX1262**                                                                                   | XIAO ESP32-S3                | bare SX1262                | Wi-Fi    |
 | **MeshSmith Photon-1W ESP32-C6**                                                                            | XIAO ESP32-C6                | SX1262/E22P class 1 W      | Wi-Fi    |
+| **Grumpy Node**                                                                                             | XIAO ESP32-C3                | E22P-915M30S, 1 W          | Wi-Fi    |
 | **LilyGO T-LoRa T3-S3** v1.2/v1.3                                                                           | ESP32-S3                     | bare SX1262 + OLED         | Wi-Fi    |
 | **LilyGO T-Beam-S3 Supreme**                                                                                | ESP32-S3                     | bare SX1262 + L76K GNSS + 1.3" OLED, AXP2101 PMU | Wi-Fi |
 | **RAK3112 WisMesh**                                                                                         | ESP32-S3 (module)            | SX1262 in-module           | Wi-Fi    |
@@ -72,7 +73,7 @@ Wio use USB-CDC only.
 
 ## Project layout
 
-- **`firmware/`** — PlatformIO tree, twenty environments sharing one source.
+- **`firmware/`** — PlatformIO tree, twenty-one environments sharing one source.
   Each board lives in `include/boards/<env>.h`; `platformio.ini` picks
   one via `-DBOARD_<NAME>`. Prebuilt artifacts (ESP32: combined
   `firmware.factory.bin` plus `bootloader.bin / partitions.bin / firmware.bin`;
@@ -125,6 +126,7 @@ Per-board highlights (full pin numbers in the headers, mDNS prefix is
 - **Ikoka Stick** — XIAO ESP32-S3 + E22P868M30S, EN-held + DIO2-as-RF-switch, max 30 dBm chip / +10 dB PA, external OLED.
 - **XIAO Wio-SX1262** — Seeed XIAO ESP32-S3 + bare SX1262, no OLED.
 - **MeshSmith Photon-1W ESP32-C6** — Seeed XIAO ESP32-C6 + Photon 1 W SX1262/E22P class front end, Photon XIAO pinout (D1 DIO1, D2 reset, D3 busy, D4 NSS, D5 RXEN, D8/D9/D10 SPI), Wi-Fi/TCP + AP provisioning + web UI/stats/OTA.
+- **Grumpy Node** — Seeed XIAO ESP32-C3 + E22P-915M30S 1 W front end. D6/GPIO21 is held high to enable the radio, SX1262 DIO2 controls TX/RX, D2/D1/D3/D7 are DIO1/reset/busy/NSS, and D8/D9/D10 use the C3 FSPI host. A MAX17048 on D4/D5 reports battery voltage and solar charge/discharge rate. This is a 902-928 MHz radio and defaults to 915.8 MHz with 20 dBm SX1262 drive.
 - **LilyGO T3-S3** — bare SX1262 + onboard SSD1306, native USB-CDC.
 - **LilyGO T-Beam-S3 Supreme** — bare SX1262 + onboard L76K GNSS + 1.3" SH1106 OLED, native USB-CDC. LoRa/GNSS/OLED power rails are gated by an onboard AXP2101 PMU chip (`pmu_manager.cpp` / `BoardConfig.pmu`) on its own I2C bus rather than plain GPIOs — the only board in this fleet wired that way.
 - **RAK3112 WisMesh** — SX1262 inside the RAK3112 module, no OLED.
